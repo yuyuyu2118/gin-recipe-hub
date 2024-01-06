@@ -68,7 +68,7 @@ func main() {
 	router.LoadHTMLGlob("templates/*.html")
 
 	// 静的ファイルのディレクトリを指定する
-	router.Static("/assets", "./assets")
+	router.Static("/assets", "./templates/assets")
 
 	// ルートURLにアクセスしたときにindex.htmlをレンダリングする
 	router.GET("/", func(c *gin.Context) {
