@@ -18,6 +18,8 @@ COPY --from=builder /app/gin-recipe-hub .
 COPY --from=builder /go/bin/air /usr/local/bin/air
 COPY . .
 COPY templates/ templates/
+# .air.tomlをコピー
+COPY .air.toml ./
 EXPOSE 8080
 
 # Airを起動コマンドとして設定
