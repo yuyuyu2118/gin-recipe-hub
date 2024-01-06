@@ -12,8 +12,14 @@ services:
       DB_PASSWORD: recipepass
       DB_NAME: recipedb
       DB_PORT: 5432
+    volumes:
+      - .:/app
+      - ./templates:/app/templates
     networks:
       - app-network
+    # コンテナ内でアプリケーションを自動的に再起動するためのコマンドを追加することもできます
+    # command: sh -c "go build -o main . && ./main"
+    # または、ライブリロードツールを使用する場合はそのコマンドを指定します
 
   db:
     image: postgres:13

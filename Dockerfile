@@ -5,13 +5,20 @@ COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 COPY . .
-# 静的にリンクされたバイナリをビルドするコマンドを追加
-RUN CGO_ENABLED=0 go build -ldflags '-extldflags "-static"' -o gin-recipe-hub
+RUN go build -o gin-recipe-hub
+
+# Airをインストール
+RUN go install github.com/cosmtrek/air@latest
 
 # 実行ステージ
-FROM gcr.io/distroless/base-debian10
-WORKDIR /
+FROM golang:1.20
+WORKDIR /app
 COPY --from=builder /app/gin-recipe-hub .
+# $GOPATH/bin/air からバイナリをコピー
+COPY --from=builder /go/bin/air /usr/local/bin/air
+COPY . .
 COPY templates/ templates/
 EXPOSE 8080
-CMD ["./gin-recipe-hub"]
+
+# Airを起動コマンドとして設定
+CMD ["air"]
