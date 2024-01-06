@@ -64,20 +64,58 @@ func init() {
 func main() {
 	router := gin.Default()
 
+	// HTMLテンプレートをロードする
+	router.LoadHTMLGlob("templates/*.html")
+
+	// 静的ファイルのディレクトリを指定する
+	router.Static("/assets", "./assets")
+
+	// ルートURLにアクセスしたときにindex.htmlをレンダリングする
+	router.GET("/", func(c *gin.Context) {
+		c.HTML(200, "index.html", gin.H{
+			"title": "ホームページ",
+		})
+	})
+
 	// レシピの一覧を取得するエンドポイント
 	router.GET("/recipes", func(c *gin.Context) {
+		c.JSON(200, recipes)
 	})
 
 	// 新しいレシピを投稿するエンドポイント
 	router.POST("/recipes", func(c *gin.Context) {
+		var nexRecipe Recipe
+		if err := c.BindJSON(&nexRecipe); err != nil {
+			c.JSON(400, gin.H{"error": "リクエストが正しくありません"})
+			return
+		}
+		recipes = append(recipes, nexRecipe)
+		c.JSON(201, nexRecipe)
 	})
 
 	// 特定のIDのレシピを取得するエンドポイント
 	router.GET("/recipes/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		for _, recipe := range recipes {
+			if recipe.ID == id {
+				c.JSON(200, recipe)
+				return
+			}
+		}
+		c.JSON(404, gin.H{"error": "レシピが見つかりませんでした"})
 	})
 
 	// 特定のIDのレシピを削除するエンドポイント
 	router.DELETE("/recipes/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		for i, recipe := range recipes {
+			if recipe.ID == id {
+				recipes = append(recipes[:i], recipes[i+1:]...)
+				c.JSON(200, recipe)
+				return
+			}
+		}
+		c.JSON(404, gin.H{"error": "レシピが見つかりませんでした"})
 	})
 
 	router.Run(":8080")
