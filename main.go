@@ -1,7 +1,14 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
+	"log"
+	"os"
+
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
+	_ "github.com/lib/pq"
 )
 
 type Recipe struct {
@@ -62,6 +69,45 @@ func init() {
 }
 
 func main() {
+	// 環境変数からデータベース接続情報を取得
+	dbHost := os.Getenv("DB_HOST")
+	dbUser := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+	dbPort := os.Getenv("DB_PORT")
+
+	// データベース接続文字列を構築
+	connStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+		dbHost, dbUser, dbPassword, dbName, dbPort)
+
+	// データベースに接続
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	// データベース接続を確認
+	err = db.Ping()
+	if err != nil {
+		log.Fatal("データベース接続エラー: ", err)
+	}
+
+	// データベーススキーマの作成
+	createTableSQL := `CREATE TABLE IF NOT EXISTS recipes (
+		id SERIAL PRIMARY KEY,
+		title TEXT NOT NULL,
+		description TEXT NOT NULL,
+		ingredients TEXT[] NOT NULL,
+		instructions TEXT[] NOT NULL
+	);`
+	_, err = db.Exec(createTableSQL)
+	if err != nil {
+		log.Fatalf("テーブルの作成に失敗しました: %v", err)
+	}
+
+	fmt.Println("Successfully connected to the database!")
+
 	router := gin.Default()
 
 	// HTMLテンプレートをロードする
@@ -79,6 +125,37 @@ func main() {
 
 	// レシピの一覧を取得するエンドポイント
 	router.GET("/recipes", func(c *gin.Context) {
+		// データベースからレシピを取得するクエリ
+		rows, err := db.Query("SELECT id, title, description, ingredients, instructions FROM recipes")
+		if err != nil {
+			c.JSON(500, gin.H{"error": "データベースからのレシピの取得に失敗しました"})
+			return
+		}
+		defer rows.Close()
+
+		// レシピを格納するスライスを初期化
+		var recipes []Recipe
+
+		// クエリ結果をループしてレシピをスライスに追加
+		for rows.Next() {
+			var r Recipe
+			// ingredients, instructions が文字列のスライスである場合、
+			// データベースのデータ型に応じて適切なスキャン方法を選択する必要があります。
+			// 以下は、単純な文字列フィールドとしてスキャンする例です。
+			if err := rows.Scan(&r.ID, &r.Title, &r.Description, pq.Array(&r.Ingredients), pq.Array(&r.Instructions)); err != nil {
+				c.JSON(500, gin.H{"error": "レシピの読み込みに失敗しました"})
+				return
+			}
+			recipes = append(recipes, r)
+		}
+
+		// エラーのチェック
+		if err = rows.Err(); err != nil {
+			c.JSON(500, gin.H{"error": "レシピの読み込み中にエラーが発生しました"})
+			return
+		}
+
+		// レシピのスライスをJSONとして返す
 		c.JSON(200, recipes)
 	})
 
@@ -89,33 +166,67 @@ func main() {
 			c.JSON(400, gin.H{"error": "リクエストが正しくありません"})
 			return
 		}
-		recipes = append(recipes, newRecipe)
+
+		// データベースに新しいレシピを保存するSQL文を実行
+		_, err := db.Exec("INSERT INTO recipes (title, description, ingredients, instructions) VALUES ($1, $2, $3, $4)",
+			newRecipe.Title, newRecipe.Description, pq.Array(newRecipe.Ingredients), pq.Array(newRecipe.Instructions))
+		if err != nil {
+			c.JSON(500, gin.H{"error": "データベースへの保存に失敗しました: " + err.Error()})
+			return
+		}
+
 		c.JSON(201, newRecipe)
 	})
 
 	// 特定のIDのレシピを取得するエンドポイント
 	router.GET("/recipes/:id", func(c *gin.Context) {
 		id := c.Param("id")
-		for _, recipe := range recipes {
-			if recipe.ID == id {
-				c.JSON(200, recipe)
-				return
+
+		// データベースから指定されたIDのレシピを取得するSQLクエリを実行
+		var recipe Recipe
+		err := db.QueryRow("SELECT id, title, description, ingredients, instructions FROM recipes WHERE id = $1", id).Scan(&recipe.ID, &recipe.Title, &recipe.Description, pq.Array(&recipe.Ingredients), pq.Array(&recipe.Instructions))
+		if err != nil {
+			if err == sql.ErrNoRows {
+				// レシピが見つからない場合は404エラーを返す
+				c.JSON(404, gin.H{"error": "レシピが見つかりませんでした"})
+			} else {
+				// その他のエラーの場合は500エラーを返す
+				c.JSON(500, gin.H{"error": "データベースのクエリ中にエラーが発生しました: " + err.Error()})
 			}
+			return
 		}
-		c.JSON(404, gin.H{"error": "レシピが見つかりませんでした"})
+
+		// レシピをJSONとして返す
+		c.JSON(200, recipe)
 	})
 
 	// 特定のIDのレシピを削除するエンドポイント
 	router.DELETE("/recipes/:id", func(c *gin.Context) {
 		id := c.Param("id")
-		for i, recipe := range recipes {
-			if recipe.ID == id {
-				recipes = append(recipes[:i], recipes[i+1:]...)
-				c.JSON(200, recipe)
-				return
-			}
+
+		// データベースから指定されたIDのレシピを削除するSQL文を実行
+		result, err := db.Exec("DELETE FROM recipes WHERE id = $1", id)
+		if err != nil {
+			// SQL実行中にエラーが発生した場合は500エラーを返す
+			c.JSON(500, gin.H{"error": "データベースからのレシピの削除に失敗しました: " + err.Error()})
+			return
 		}
-		c.JSON(404, gin.H{"error": "レシピが見つかりませんでした"})
+
+		// 削除されたレコードの数を確認
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			c.JSON(500, gin.H{"error": "削除されたレシピの数の取得に失敗しました: " + err.Error()})
+			return
+		}
+
+		if rowsAffected == 0 {
+			// レシピが見つからない場合は404エラーを返す
+			c.JSON(404, gin.H{"error": "レシピが見つかりませんでした"})
+			return
+		}
+
+		// 削除に成功した場合は200ステータスコードを返す
+		c.JSON(200, gin.H{"message": "レシピが削除されました"})
 	})
 
 	router.Run(":8080")
