@@ -84,13 +84,13 @@ func main() {
 
 	// 新しいレシピを投稿するエンドポイント
 	router.POST("/recipes", func(c *gin.Context) {
-		var nexRecipe Recipe
-		if err := c.BindJSON(&nexRecipe); err != nil {
+		var newRecipe Recipe
+		if err := c.BindJSON(&newRecipe); err != nil {
 			c.JSON(400, gin.H{"error": "リクエストが正しくありません"})
 			return
 		}
-		recipes = append(recipes, nexRecipe)
-		c.JSON(201, nexRecipe)
+		recipes = append(recipes, newRecipe)
+		c.JSON(201, newRecipe)
 	})
 
 	// 特定のIDのレシピを取得するエンドポイント
