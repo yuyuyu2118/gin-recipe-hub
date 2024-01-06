@@ -43,4 +43,6 @@ Ginフレームワークを使用して、レシピを共有・閲覧できるWe
 
 ```
 docker cp gin-recipe-hub-app-1:/app/templates/index.html .
+<!-- データベース削除 -->
+docker volume rm postgres_data
 ```
