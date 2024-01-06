@@ -23,4 +23,4 @@ COPY .air.toml ./
 EXPOSE 8080
 
 # Airを起動コマンドとして設定
-CMD ["air"]
+CMD ["air", "-c", ".air.toml"]
