@@ -69,19 +69,22 @@ func init() {
 }
 
 func main() {
-	// 環境変数からデータベース接続情報を取得
-	dbHost := os.Getenv("DB_HOST")
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-	dbPort := os.Getenv("DB_PORT")
+	// // 環境変数からデータベース接続情報を取得
+	// dbHost := os.Getenv("DB_HOST")
+	// dbUser := os.Getenv("DB_USER")
+	// dbPassword := os.Getenv("DB_PASSWORD")
+	// dbName := os.Getenv("DB_NAME")
+	// dbPort := os.Getenv("DB_PORT")
 
-	// データベース接続文字列を構築
-	connStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		dbHost, dbUser, dbPassword, dbName, dbPort)
+	// // データベース接続文字列を構築
+	// connStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+	// 	dbHost, dbUser, dbPassword, dbName, dbPort)
+
+	// HerokuのDATABASE_URL環境変数からデータベース接続情報を取得
+	databaseUrl := os.Getenv("DATABASE_URL")
 
 	// データベースに接続
-	db, err := sql.Open("postgres", connStr)
+	db, err := sql.Open("postgres", databaseUrl)
 	if err != nil {
 		log.Fatal(err)
 	}
