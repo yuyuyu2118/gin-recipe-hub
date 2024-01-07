@@ -232,5 +232,12 @@ func main() {
 		c.JSON(200, gin.H{"message": "レシピが削除されました"})
 	})
 
-	router.Run(":8080")
+	// 環境変数からポートを取得し、デフォルトのポートを設定
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // デフォルトポート
+	}
+
+	// 環境変数で指定されたポートでアプリケーションを起動
+	router.Run(":" + port)
 }
