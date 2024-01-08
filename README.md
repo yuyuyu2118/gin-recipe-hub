@@ -56,3 +56,36 @@ git add .
 git commit -m "Use DATABASE_URL for Heroku PostgreSQL connection"
 git push heroku main
 ```
+
+### ステップ 2: Docker イメージの作成と ECR へのプッシュ
+
+1. **Docker イメージをビルド**します。Dockerfile があるディレクトリで以下のコマンドを実行します。
+
+   ```sh
+   docker build -t your-app-name .
+   ```
+
+2. **Amazon Elastic Container Registry (ECR) リポジトリを作成**します。これは、Docker イメージを AWS に保存する場所です。
+   AWS Management Console で ECR に移動し、「Create repository」をクリックして新しいリポジトリを作成します。
+
+3. **AWS CLI を使用して ECR にログイン**します。
+
+   ```sh
+   aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin 387107580630.dkr.ecr.ap-northeast-1.amazonaws.com
+   ```
+
+4. **Docker イメージにタグを付け**、ECR リポジトリの URI を使用します。
+
+   ```sh
+   docker tag your-app-name:latest your-aws-account-id.dkr.ecr.your-region.amazonaws.com/your-app-name:latest
+
+   docker tag gin-recipe-hub-app:latest 387107580630.dkr.ecr.ap-northeast-1.amazonaws.com/gin-recipe-hub-app:latest
+   ```
+
+5. **イメージを ECR にプッシュ**します。
+
+   ```sh
+   docker push your-aws-account-id.dkr.ecr.your-region.amazonaws.com/your-app-name:latest
+
+   docker push 387107580630.dkr.ecr.ap-northeast-1.amazonaws.com/gin-recipe-hub-app:latest
+   ```
